@@ -99,7 +99,7 @@ LIMIT
     return rows;
   } catch (error) {
     console.log('error')
-    throw(error['message']);
+    throw (error['message']);
   }
 }
 exports.getAllReservations = getAllReservations;
@@ -113,12 +113,139 @@ exports.getAllReservations = getAllReservations;
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = async function (options, limit = 10) {
+  console.log(options);
+  let result;
+  let { city, owner_id, minimum_price_per_night, maximum_price_per_night, minimum_rating } = options;
   try {
-    const response = await pool.query(`SELECT * FROM properties LIMIT $1`, [limit]);
-    return response.rows;
-  } catch (err) {
-    throw err['message'];
+    result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+GROUP BY
+    1
+ORDER BY
+    cost_per_night
+    ;`);
+  } catch (error) {
+    throw (error['message']);
   }
+
+  if (owner_id) {
+    try {
+      console.log(owner_id);
+      result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+${`WHERE owner_id = $1`}
+GROUP BY
+    1
+ORDER BY
+    cost_per_night
+    ;`, [owner_id]);
+    } catch (error) {
+      throw (error['message']);
+    }
+  }
+
+  if (city) {
+    try {
+      result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+${`WHERE city LIKE $1`}
+GROUP BY
+    1
+ORDER BY
+    cost_per_night
+    ;`, [city]);
+    } catch (err) {
+      throw err['message'];
+    }
+  }
+
+  if (minimum_price_per_night) {
+    try {
+      result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+${`WHERE cost_per_night > $1`}
+GROUP BY
+    1
+ORDER BY
+    cost_per_night
+    ;`, [minimum_price_per_night * 100]);
+    } catch (err) {
+      throw err['message'];
+    }
+  }
+
+  if (maximum_price_per_night) {
+    try {
+      result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+${`WHERE cost_per_night > $1`}
+GROUP BY
+    1
+ORDER BY
+    cost_per_night
+    ;`, [maximum_price_per_night * 100]);
+    } catch (err) {
+      throw err['message'];
+    }
+  }
+
+  if (minimum_rating) {
+    try {
+      result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+GROUP BY
+    1
+${`HAVING rating > $1`}
+ORDER BY
+    cost_per_night
+    ;`, [minimum_rating]);
+    } catch (err) {
+      throw err['message'];
+    }
+  }
+
+  try {
+    result = await pool.query(`SELECT
+    properties.*,
+    min(property_reviews.rating) as minimum_rating
+FROM
+    properties
+    LEFT JOIN property_reviews ON properties.id = property_id
+GROUP BY
+    1
+ORDER BY
+    cost_per_night
+LIMIT
+  $1    
+    ;`, [limit]);
+  } catch (error) {
+    throw (error['message']);
+  }
+  return result.rows;
 }
 exports.getAllProperties = getAllProperties;
 
